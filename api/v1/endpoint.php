@@ -130,7 +130,7 @@ abstract class API {
 }
 
 class MyAPI extends API {
-	protected $User;
+	protected $userId;
 
 	public function __construct($request, $origin) {
 		parent::__construct($request);
@@ -177,11 +177,11 @@ class MyAPI extends API {
 	}
 	
 	protected function loadData() {
-		
+		return Sync\load($userId);
 	}
 	
 	protected function storeData() {
-		
+		Sync\store($userId, 'blob');
 	}
 	
 	protected function getGameResults() {
