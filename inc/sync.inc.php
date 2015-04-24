@@ -2,9 +2,7 @@
 
 namespace Sync;
 
-define('__ROOT__', dirname(dirname(__FILE__)));
-
-require_once(__ROOT__ . '/inc/database.inc.php');
+require_once(BASE_PATH . 'inc/database.inc.php');
 
 function store($userId, $blob) {
 	$db_conn->query("UPDATE `cloud` SET `data` = %s WHERE `user` = %s", $blob, $userId);

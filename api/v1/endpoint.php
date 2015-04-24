@@ -1,9 +1,11 @@
 <?php
 
 require_once('../../inc/config.inc.php');
-require_once('../../inc/database.inc.php');
-require_once('../../inc/ocr.inc.php');
-require_once('../../inc/sync.inc.php');
+
+require_once(BASE_PATH . 'inc/database.inc.php');
+require_once(BASE_PATH . 'inc/ocr.inc.php');
+require_once(BASE_PATH . 'inc/sync.inc.php');
+require_once(BASE_PATH . 'inc/users.inc.php');
 
 abstract class API {
 	/**
@@ -56,6 +58,7 @@ abstract class API {
 
 		$this->args = explode('/', rtrim($request, '/'));
 		$this->endpoint = array_shift($this->args);
+		
 		if (array_key_exists(0, $this->args) && !is_numeric($this->args[0])) {
 			$this->verb = array_shift($this->args);
 		}
@@ -134,6 +137,12 @@ class MyAPI extends API {
 
 	public function __construct($request, $origin) {
 		parent::__construct($request);
+		
+		global $db_conn;
+		
+		if (array_key_exists('username', $this->request)) {
+			
+		}
 
 		// Abstracted out for example
 		/*$APIKey = new Models\APIKey();
@@ -165,36 +174,84 @@ class MyAPI extends API {
 	}
 	
 	protected function login() {
-		
+		if ($this->method == 'GET') {
+			if (!array_key_exists('username', $this->request) || !array_key_exists('password', $this->request))
+				return array('error' => 'Missing required fields.');
+			
+			if (Users\validateDetails($this->request['username'], $this->request['password']))
+				return array('result' => true);
+			
+			return array('result' => false);
+		} else
+			return 'This method only accepts GET requests.';
 	}
 	
 	protected function register() {
-		
+		if ($this->method == 'POST') {
+			if (!array_key_exists('username', $this->request) || 
+				!array_key_exists('password', $this->request), 
+				!array_key_exists('email', $this->request))
+				return array('error' => 'Missing required fields.');
+			
+			if (Users\createAccount($this->request['username'], $this->request['password'], $this->request['email'], $error))
+				return array('result' => true);
+			
+			return array('result' => false, 'error' => $error);
+		} else
+			return 'This method only accepts POST requests.';
 	}
 	
-	protected function performOCR() {
-		
+	protected function createRequestOCR() {
+		if ($this->method == 'POST') {
+			
+		} else
+			return 'This method only accepts POST requests.';
+	}
+	
+	protected function retrieveResultOCR() {
+		if ($this->method == 'GET') {
+			
+		} else
+			return 'This method only accepts POST requests.';
+	}
+	
+	protected function deleteResultOCR() {
+		if ($this->method == 'DELETE') {
+			
+		} else
+			return 'This method only accepts DELETE requests.';
 	}
 	
 	protected function loadData() {
-		return Sync\load($userId);
+		if ($this->method == 'GET') {
+			return Sync\load($userId);
+		} else
+			return 'This method only accepts GET requests.';
 	}
 	
 	protected function storeData() {
-		Sync\store($userId, 'blob');
+		if ($this->method == 'PUT') {
+			Sync\store($userId, 'blob');
+		} else
+			return 'This method only accepts PUT requests.';
 	}
 	
 	protected function getGameResults() {
 		//	Query Santa Casa API
+		
+		if ($this->method == 'GET') {
+			
+		} else 
+			return 'This method only accepts GET requests.';
 	}
 }
 
-if (!array_key_exists('HTTP_ORIGIN', $_SERVER)) {
+if (!array_key_exists('HTTP_ORIGIN', $_SERVER))
 	$_SERVER['HTTP_ORIGIN'] = $_SERVER['SERVER_NAME'];
-}
 
 try {
 	$API = new MyAPI($_REQUEST['request'], $_SERVER['HTTP_ORIGIN']);
+	
 	echo $API->processAPI();
 } catch (Exception $e) {
 	echo json_encode(Array('error' => $e->getMessage()));
