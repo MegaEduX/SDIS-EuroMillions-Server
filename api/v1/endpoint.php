@@ -1,5 +1,8 @@
 <?php
 
+ini_set('display_errors', '1');
+error_reporting(E_ALL);
+
 require_once('../../inc/config.inc.php');
 
 require_once(BASE_PATH . 'inc/database.inc.php');
@@ -160,26 +163,14 @@ class MyAPI extends API {
 
 		$this->User = $User;*/
 	}
-
-	/**
-	 * Example of an Endpoint
-	 */
-	 
-	protected function example() {
-		if ($this->method == 'GET') {
-			return "Your name is " . $this->User->name;
-		} else {
-			return "Only accepts GET requests";
-		}
-	}
 	
 	protected function login() {
 		if ($this->method == 'GET') {
 			if (!array_key_exists('username', $this->request) || !array_key_exists('password', $this->request))
 				return array('error' => 'Missing required fields.');
 			
-			if (Users\validateDetails($this->request['username'], $this->request['password']))
-				return array('result' => true);
+			if (Users\login($this->request['username'], $this->request['password'], $accessKey))
+				return array('result' => true, 'key' => $accessKey);
 			
 			return array('result' => false);
 		} else
@@ -188,8 +179,8 @@ class MyAPI extends API {
 	
 	protected function register() {
 		if ($this->method == 'POST') {
-			if (!array_key_exists('username', $this->request) || 
-				!array_key_exists('password', $this->request), 
+			if (!array_key_exists('username', $this->request) ||
+				!array_key_exists('password', $this->request) ||
 				!array_key_exists('email', $this->request))
 				return array('error' => 'Missing required fields.');
 			
@@ -224,6 +215,9 @@ class MyAPI extends API {
 	
 	protected function loadData() {
 		if ($this->method == 'GET') {
+			if (!array_key_exists('key', $this->request))
+				return array('error' => 'Missing required fields.');
+			
 			return Sync\load($userId);
 		} else
 			return 'This method only accepts GET requests.';
@@ -241,7 +235,7 @@ class MyAPI extends API {
 		
 		if ($this->method == 'GET') {
 			
-		} else 
+		} else
 			return 'This method only accepts GET requests.';
 	}
 }

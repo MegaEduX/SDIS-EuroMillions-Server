@@ -10,21 +10,63 @@ function hash($username, $password) {
 	return sha1($username . SALT . $password);
 }
 
+function getUserIdentifier($username) {
+	global $db_conn;
+	
+	$result = $db_conn->query("SELECT `id` FROM `users` WHERE `username` = %s", $username)->fetchAll();
+	
+	return $result[0]['id'];
+}
+
+function getUsername($userId) {
+	global $db_conn;
+	
+	$result = $db_conn->query("SELECT `username` FROM `users` WHERE `id` = %s", $userId)->fetchAll();
+	
+	return $result[0];
+}
+
 function validateLoginDetails($username, $password) {
+	global $db_conn;
+	
 	return ($db_conn->query("SELECT * FROM `users` WHERE `username` = %s AND `password` = %s", 
 				$username, 
 				hash($username, $password))->rowCount() 
 				== 1);
 }
 
+function login($username, $password, &$key) {
+	global $db_conn;
+	
+	if (!validateLoginDetails($username, $password))
+		return false;
+	
+	$key = base64_encode(openssl_random_pseudo_bytes(96));
+	
+	while ($db_conn->query("SELECT `key` FROM `sessions` WHERE `key` = %s", $key)->rowCount())
+		$key = base64_encode(openssl_random_pseudo_bytes(96));
+	
+	$db_conn->query("INSERT INTO `sessions` (`user`, `key`) VALUES (%s, %s)", getUserIdentifier($username), $key);
+	
+	return true;
+}
+
+function validateSession($key) {
+	global $db_conn;
+	
+	return ($db_conn->query("SELECT `key` FROM `sessions` WHERE `key` = %s", $key)->rowCount() == 1);
+}
+
 function createAccount($username, $password, $email, &$error) {
-	if (sizeof($username) < 6) {
+	global $db_conn;
+	
+	if (strlen($username) < 6) {
 		$error = 'Username too short!';
 		
 		return false;
 	}
 	
-	if (sizeof($password) < 8) {
+	if (strlen($password) < 8) {
 		$error = 'Password too short!';
 		
 		return false;
