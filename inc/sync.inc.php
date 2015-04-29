@@ -5,15 +5,21 @@ namespace Sync;
 require_once(BASE_PATH . 'inc/database.inc.php');
 
 function store($userId, $blob) {
-	$db_conn->query("UPDATE `cloud` SET `data` = %s WHERE `user` = %s", $blob, $userId);
+	$query = $db_conn->query("SELECT `data` FROM `cloud` WHERE `user` = %s", $userId);
+	
+	if (!$query->numRows())
+		$db_conn->query("INSERT INTO `cloud` (`data`, `user`) VALUES (%s, %s)", $blob, $userId);
+	else
+		$db_conn->query("UPDATE `cloud` SET `data` = %s WHERE `user` = %s", $blob, $userId);
 }
 
 function load($userId) {
-	//	Not sure if this is working, though.
+	$query = $db_conn->query("SELECT `data` FROM `cloud` WHERE `user` = %s", $userId);
 	
-	$result = $db_conn->query("SELECT `data` FROM `cloud` WHERE `user` = %s", $userId)->fetchAll(PDO::FETCH_ASSOC);
+	if (!$query->numRows())
+		return false;
 	
-	return $result[0][0];
+	return $query->fetch()['data'];
 }
 
 function delete($userId) {

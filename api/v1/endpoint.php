@@ -182,7 +182,7 @@ class MyAPI extends API {
 			if (!array_key_exists('username', $this->request) ||
 				!array_key_exists('password', $this->request) ||
 				!array_key_exists('email', $this->request))
-				return array('error' => 'Missing required fields.');
+				return array('error' => 'Missing required fields.', 'debug' => print_r($_POST, true));
 			
 			if (Users\createAccount($this->request['username'], $this->request['password'], $this->request['email'], $error))
 				return array('result' => true);
@@ -194,21 +194,44 @@ class MyAPI extends API {
 	
 	protected function createRequestOCR() {
 		if ($this->method == 'POST') {
+			if (!array_key_exists('key' => $this->request) || 
+				!array_key_exists('blob', $this->request))
+				return array('error' => 'Missing required fields.');
 			
+			$reqResult = OCR\storeRequest(Users\getLoggedInUserIdentifier($this->request['key']), $this->request['blob']);
+			
+			if ($reqResult !== false)
+				return array('result' => true, 'request' => $reqResult);
+			else
+				return array('result' => false, 'error' => 'Undefined Error.');
 		} else
 			return 'This method only accepts POST requests.';
 	}
 	
 	protected function retrieveResultOCR() {
 		if ($this->method == 'GET') {
+			if (!array_key_exists('key' => $this->request) || 
+				!array_key_exists('request', $this->request))
+				return array('error' => 'Missing required fields.');
 			
+			$retrieveResult = OCR\getRequest(Users\getLoggedInUserIdentifier($this->request['key']), $this->request['request'], $errorCode);
+			
+			if ($retrieveResult !== false)
+				return array('result' => true, 'response' => $retrieveResult);
+			else
+				return array('result' => false, 'error' => $errorCode);
 		} else
 			return 'This method only accepts POST requests.';
 	}
 	
 	protected function deleteResultOCR() {
 		if ($this->method == 'DELETE') {
+			if (!array_key_exists('key' => $this->request) || 
+				!array_key_exists('request', $this->request))
+				return array('error' => 'Missing required fields.');
 			
+			return array('result' => OCR\deleteRequest(Users\getLoggedInUserIdentifier($this->request['key']), 
+									$this->request['request']));
 		} else
 			return 'This method only accepts DELETE requests.';
 	}

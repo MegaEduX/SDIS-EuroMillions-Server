@@ -23,7 +23,15 @@ function getUsername($userId) {
 	
 	$result = $db_conn->query("SELECT `username` FROM `users` WHERE `id` = %s", $userId)->fetchAll();
 	
-	return $result[0];
+	return $result[0]['username'];
+}
+
+function getLoggedInUserIdentifier($key) {
+	global $db_conn;
+	
+	$result = $db_conn->query("SELECT `user` FROM `sessions` WHERE `key` = %s", $key);
+	
+	return $result[0]['user'];
 }
 
 function validateLoginDetails($username, $password) {
