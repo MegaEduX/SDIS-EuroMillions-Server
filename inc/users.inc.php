@@ -6,7 +6,17 @@ require_once(BASE_PATH . 'inc/database.inc.php');
 
 define('SALT', 'Salt + Pepper');
 
-function hash($username, $password) {
+function __generate_random_string($length = 10) {
+	$characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+	$randomString = '';
+	
+	for ($i = 0; $i < $length; $i++)
+		$randomString .= $characters[rand(0, strlen($characters) - 1)];
+	
+	return $randomString;
+}
+
+function hash_key($username, $password) {
 	return sha1($username . SALT . $password);
 }
 
@@ -29,7 +39,10 @@ function getUsername($userId) {
 function getLoggedInUserIdentifier($key) {
 	global $db_conn;
 	
-	$result = $db_conn->query("SELECT `user` FROM `sessions` WHERE `key` = %s", $key);
+	$result = $db_conn->query("SELECT `user` FROM `sessions` WHERE `key` = %s", $key)->fetchAll();
+	
+	if (!sizeof($result))
+		return false;
 	
 	return $result[0]['user'];
 }
@@ -39,7 +52,7 @@ function validateLoginDetails($username, $password) {
 	
 	return ($db_conn->query("SELECT * FROM `users` WHERE `username` = %s AND `password` = %s", 
 				$username, 
-				hash($username, $password))->rowCount() 
+				hash_key($username, $password))->rowCount() 
 				== 1);
 }
 
@@ -49,10 +62,10 @@ function login($username, $password, &$key) {
 	if (!validateLoginDetails($username, $password))
 		return false;
 	
-	$key = base64_encode(openssl_random_pseudo_bytes(96));
+	$key = __generate_random_string(128);
 	
 	while ($db_conn->query("SELECT `key` FROM `sessions` WHERE `key` = %s", $key)->rowCount())
-		$key = base64_encode(openssl_random_pseudo_bytes(96));
+		$key = __generate_random_string(128);
 	
 	$db_conn->query("INSERT INTO `sessions` (`user`, `key`) VALUES (%s, %s)", getUserIdentifier($username), $key);
 	
@@ -74,13 +87,13 @@ function createAccount($username, $password, $email, &$error) {
 		return false;
 	}
 	
-	if (strlen($password) < 8) {
-		$error = 'Password too short!';
+	if (strlen($password) != 128) {
+		$error = 'Passwords are required to be hashed using SHA-512.';
 		
 		return false;
 	}
 	
-	if (/* Validate E-Mail */ false) {
+	if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 		$error = 'Invalid e-mail address!';
 		
 		return false;
@@ -98,7 +111,7 @@ function createAccount($username, $password, $email, &$error) {
 		return false;
 	}
 	
-	$db_conn->query("INSERT INTO `users` (`username`, `password`, `email`) VALUES (%s, %s, %s)", $username, hash($username, $password), $email);
+	$db_conn->query("INSERT INTO `users` (`username`, `password`, `email`) VALUES (%s, %s, %s)", $username, hash_key($username, $password), $email);
 	
 	return true;
 }

@@ -135,7 +135,7 @@ abstract class API {
 	}
 }
 
-class MyAPI extends API {
+class EuroMillionsAPI extends API {
 	protected $userId;
 
 	public function __construct($request, $origin) {
@@ -143,30 +143,20 @@ class MyAPI extends API {
 		
 		global $db_conn;
 		
-		if (array_key_exists('username', $this->request)) {
+		if (array_key_exists('key', $this->request)) {
+			$uid = Users\getLoggedInUserIdentifier($this->request['key']);
 			
-		}
-
-		// Abstracted out for example
-		/*$APIKey = new Models\APIKey();
-		$User = new Models\User();
-
-		if (!array_key_exists('apiKey', $this->request)) {
-			throw new Exception('No API Key provided');
-		} else if (!$APIKey->verifyKey($this->request['apiKey'], $origin)) {
-			throw new Exception('Invalid API Key');
-		} else if (array_key_exists('token', $this->request) &&
-			 !$User->get('token', $this->request['token'])) {
-
-			throw new Exception('Invalid User Token');
-		}
-
-		$this->User = $User;*/
+			if (!$uid)
+				throw new Exception('Invalid User Token! ' . $this->request['key']);
+			
+			$this->userId = $uid;
+		} else
+			$this->userId = -1;
 	}
 	
 	protected function login() {
 		if ($this->method == 'GET') {
-			if (!array_key_exists('username', $this->request) || !array_key_exists('password', $this->request))
+			if (!array_key_exists('username', $this->request) || !array_key_exists('password', $this->request) )
 				return array('error' => 'Missing required fields.');
 			
 			if (Users\login($this->request['username'], $this->request['password'], $accessKey))
@@ -182,7 +172,7 @@ class MyAPI extends API {
 			if (!array_key_exists('username', $this->request) ||
 				!array_key_exists('password', $this->request) ||
 				!array_key_exists('email', $this->request))
-				return array('error' => 'Missing required fields.', 'debug' => print_r($_POST, true));
+				return array('error' => 'Missing required fields.');
 			
 			if (Users\createAccount($this->request['username'], $this->request['password'], $this->request['email'], $error))
 				return array('result' => true);
@@ -192,72 +182,77 @@ class MyAPI extends API {
 			return 'This method only accepts POST requests.';
 	}
 	
-	protected function createRequestOCR() {
-		if ($this->method == 'POST') {
-			if (!array_key_exists('key' => $this->request) || 
-				!array_key_exists('blob', $this->request))
-				return array('error' => 'Missing required fields.');
-			
-			$reqResult = OCR\storeRequest(Users\getLoggedInUserIdentifier($this->request['key']), $this->request['blob']);
-			
-			if ($reqResult !== false)
-				return array('result' => true, 'request' => $reqResult);
-			else
-				return array('result' => false, 'error' => 'Undefined Error.');
-		} else
-			return 'This method only accepts POST requests.';
-	}
-	
-	protected function retrieveResultOCR() {
+	protected function OCR() {
 		if ($this->method == 'GET') {
-			if (!array_key_exists('key' => $this->request) || 
-				!array_key_exists('request', $this->request))
+			if ($this->userId == -1)
+				return array('error' => 'This method requires authentication.');
+			
+			if (!array_key_exists('request', $this->request))
 				return array('error' => 'Missing required fields.');
 			
-			$retrieveResult = OCR\getRequest(Users\getLoggedInUserIdentifier($this->request['key']), $this->request['request'], $errorCode);
+			$retrieveResult = OCR\getRequest($userId, $this->request['request'], $errorCode);
 			
 			if ($retrieveResult !== false)
 				return array('result' => true, 'response' => $retrieveResult);
 			else
 				return array('result' => false, 'error' => $errorCode);
-		} else
-			return 'This method only accepts POST requests.';
-	}
-	
-	protected function deleteResultOCR() {
-		if ($this->method == 'DELETE') {
-			if (!array_key_exists('key' => $this->request) || 
-				!array_key_exists('request', $this->request))
+		} else if ($this->method == 'POST') {
+			if ($this->userId == -1)
+				return array('error' => 'This method requires authentication.');
+			
+			if (!array_key_exists('blob', $this->request))
 				return array('error' => 'Missing required fields.');
 			
-			return array('result' => OCR\deleteRequest(Users\getLoggedInUserIdentifier($this->request['key']), 
-									$this->request['request']));
+			$reqResult = OCR\storeRequest($this->userId, $this->request['blob']);
+			
+			if ($reqResult !== false)
+				return array('result' => true, 'request' => $reqResult);
+			else
+				return array('result' => false, 'error' => 'Undefined Error.');
+		} else if ($this->method == 'DELETE') {
+			if ($this->userId == -1)
+				return array('error' => 'This method requires authentication.');
+			
+			if (!array_key_exists('request', $this->request))
+				return array('error' => 'Missing required fields.');
+			
+			return array('result' => OCR\deleteRequest(	$this->userId, 
+														$this->request['request'])	);
 		} else
-			return 'This method only accepts DELETE requests.';
+			return 'This method does not accept PUT requests.';
 	}
 	
-	protected function loadData() {
+	protected function data() {
 		if ($this->method == 'GET') {
-			if (!array_key_exists('key', $this->request))
-				return array('error' => 'Missing required fields.');
+			if ($this->userId == -1)
+				return array('error' => 'This method requires authentication.');
 			
-			return Sync\load($userId);
+			return Sync\load($this->userId);
+		} else if ($this->method == 'PUT') {
+			if ($this->userId == -1)
+				return array('error' => 'This method requires authentication.');
+			
+			Sync\store($this->userId, 'blob');
 		} else
 			return 'This method only accepts GET requests.';
 	}
 	
-	protected function storeData() {
-		if ($this->method == 'PUT') {
-			Sync\store($userId, 'blob');
-		} else
-			return 'This method only accepts PUT requests.';
-	}
-	
-	protected function getGameResults() {
-		//	Query Santa Casa API
-		
+	protected function gameResults() {
 		if ($this->method == 'GET') {
+			if ($this->userId == -1)
+				return array('error' => 'This method requires authentication.');
 			
+			$json = file_get_contents('https://nunofcguerreiro.com/api-euromillions-json');
+			
+			$obj = json_decode($json, true);
+			
+			$drawns = $obj['drawns'][0];
+			
+			return array('date' => $drawns['date'], 
+						'numbers' => array_map('intval', 
+												explode(' ', $drawns['numbers'])), 
+						'stars' => array_map('intval', 
+												explode(' ', $drawns['stars'])));
 		} else
 			return 'This method only accepts GET requests.';
 	}
@@ -267,7 +262,7 @@ if (!array_key_exists('HTTP_ORIGIN', $_SERVER))
 	$_SERVER['HTTP_ORIGIN'] = $_SERVER['SERVER_NAME'];
 
 try {
-	$API = new MyAPI($_REQUEST['request'], $_SERVER['HTTP_ORIGIN']);
+	$API = new EuroMillionsAPI($_REQUEST['request'], $_SERVER['HTTP_ORIGIN']);
 	
 	echo $API->processAPI();
 } catch (Exception $e) {
