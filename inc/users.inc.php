@@ -116,4 +116,21 @@ function createAccount($username, $password, $email, &$error) {
 	return true;
 }
 
+function getPushDevices($userId) {
+	global $db_conn;
+	
+	$returnArray = array();
+	
+	$result = $db_conn->query("SELECT * FROM `devices` WHERE `user` = %s", $userId)->fetchAll();
+	
+	foreach ($result as $d)
+		$returnArray[] = array('type' => $d['type'], 'token' => $d['token']);
+	
+	return $returnArray;
+}
+
+function updatePushDevices($userId, $list) {
+	
+}
+
 ?>

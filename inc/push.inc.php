@@ -16,6 +16,12 @@ define('IOS_ROOT_CAFILE_PATH', '');
 
 define('ANDROID_API_ACCESS_KEY', '');
 
+//	typedef
+
+define('DEVICE_TYPE_IOS', 'iOS');
+define('DEVICE_TYPE_ANDROID', 'Android');
+define('DEVICE_TYPE_WINDOWSPHONE', 'Windows Phone');
+
 class Push {
 	public $message;
 	public $devices = array();
@@ -28,6 +34,23 @@ class Push {
 	
 	function addDevice($deviceId) {
 		$devices[] = $deviceId;
+	}
+	
+	function setDevices($deviceList) {
+		$devices = $deviceList;
+	}
+	
+	static function getTokens($deviceType) {
+		global $db_conn;
+	
+		$return = array();
+	
+		$res = $db_conn->query("SELECT * FROM `devices` WHERE `type` = %s", $deviceType)->fetchAll();
+	
+		foreach ($res as $row)
+			$return[] = $row['pushToken'];
+	
+		return $return;
 	}
 }
 
@@ -86,12 +109,7 @@ class iOSPush extends Push {
 	public $soundFile = 'default';
 	public $contentAvailable = true;
 	
-	function send() {
-		foreach ($devices as $d)
-			_send($d);
-	}
-	
-	function _send($device) {
+	function send($device) {
 		$ctx = stream_context_create();
 		
 		stream_context_set_option($ctx, 'ssl', 'local_cert', 
@@ -114,9 +132,11 @@ class iOSPush extends Push {
 		
 		$payload = json_encode($body);
 		
-		$msg = chr(0) . pack('n', 32) . pack('H*', $deviceToken) . pack('n', strlen($payload)) . $payload;
-		
-		$result = fwrite($fp, $msg, strlen($msg));
+		foreach ($devices as $token) {
+			$msg = chr(0) . pack('n', 32) . pack('H*', $token) . pack('n', strlen($payload)) . $payload;
+			
+			$result = fwrite($fp, $msg, strlen($msg));
+		}
 		
 		fclose($fp);
 	}

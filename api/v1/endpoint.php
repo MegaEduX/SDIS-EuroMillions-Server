@@ -232,7 +232,7 @@ class EuroMillionsAPI extends API {
 			if ($this->userId == -1)
 				return array('error' => 'This method requires authentication.');
 			
-			Sync\store($this->userId, 'blob');
+			return array('result' => Sync\store($this->userId, 'blob'));
 		} else
 			return 'This method only accepts GET requests.';
 	}
@@ -242,19 +242,51 @@ class EuroMillionsAPI extends API {
 			if ($this->userId == -1)
 				return array('error' => 'This method requires authentication.');
 			
-			$json = file_get_contents('https://nunofcguerreiro.com/api-euromillions-json');
+			global $db_conn;
 			
-			$obj = json_decode($json, true);
+			$latest = @$db_conn->query("SELECT * FROM `draws` ORDER BY `id` LIMIT 1")->fetchAll()[0];
 			
-			$drawns = $obj['drawns'][0];
+			if (!$latest)
+				return array('error' => 'Couldn\'t retrieve the requested information.');
 			
-			return array('date' => $drawns['date'], 
-						'numbers' => array_map('intval', 
-												explode(' ', $drawns['numbers'])), 
-						'stars' => array_map('intval', 
-												explode(' ', $drawns['stars'])));
+			$info = json_decode($latest['draw'], true);
+			
+			return array(	'date' 		=> $latest['date'],
+							'numbers' 	=> $info['numbers'],
+							'stars' 		=> $info['stars']
+						);
 		} else
 			return 'This method only accepts GET requests.';
+	}
+	
+	protected function push() {
+		if ($this->userId == -1)
+			return array('error' => 'This method requires authentication.');
+		
+		if ($this->method == 'GET') {
+			//	Return all devices associated with this account.
+			
+			return json_encode(Users\getPushDevices($this->userId));
+		} else if ($this->method == 'PUT') {
+			//	Update the push devices.
+			
+			if (!array_key_exists('data', $this->data))
+				return array('error' => 'Missing required fields.');
+			
+			$data = json_decode($this->data, true);
+			
+			foreach ($data as $d)
+				if (!array_key_exists($d, 'device') || 
+					!array_key_exists($d, 'token'))
+					return array('error' => 'Malformed request.');
+			
+			return array('result' => Users\updatePushDevices($this->userId, $data));
+		} else if ($this->method == 'DELETE') {
+			//	Delete all devices from the push devices list.
+			
+			return array('result' => Users\deletePushDevices($this->userId));
+		} else
+			return 'This method does not accept POST requests.';
 	}
 }
 
