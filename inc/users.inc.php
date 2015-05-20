@@ -4,7 +4,7 @@ namespace Users;
 
 require_once(BASE_PATH . 'inc/database.inc.php');
 
-define('SALT', 'Salt + Pepper');
+//	define('SALT', 'Salt + Pepper');
 
 function __generate_random_string($length = 10) {
 	$characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -16,9 +16,9 @@ function __generate_random_string($length = 10) {
 	return $randomString;
 }
 
-function hash_key($username, $password) {
+/*	function hash_key($username, $password) {
 	return sha1($username . SALT . $password);
-}
+}	*/
 
 function getUserIdentifier($username) {
 	global $db_conn;
@@ -52,8 +52,8 @@ function validateLoginDetails($username, $password) {
 	
 	return ($db_conn->query("SELECT * FROM `users` WHERE `username` = %s AND `password` = %s", 
 				$username, 
-				hash_key($username, $password))->rowCount() 
-				== 1);
+				/* hash_key($username, $password))->rowCount() */ $password
+				/* == 1 */);
 }
 
 function login($username, $password, &$key) {
@@ -111,7 +111,7 @@ function createAccount($username, $password, $email, &$error) {
 		return false;
 	}
 	
-	$db_conn->query("INSERT INTO `users` (`username`, `password`, `email`) VALUES (%s, %s, %s)", $username, hash_key($username, $password), $email);
+	$db_conn->query("INSERT INTO `users` (`username`, `password`, `email`) VALUES (%s, %s, %s)", $username, /* hash_key($username, $password) */ $password, $email);
 	
 	return true;
 }
@@ -130,7 +130,12 @@ function getPushDevices($userId) {
 }
 
 function updatePushDevices($userId, $list) {
+	global $db_conn;
 	
+	$db_conn->query("DELETE FROM `devices` WHERE `user` = %s", $userId);
+	
+	foreach ($list as $l)
+		$db_conn->query("INSERT INTO `devices` (`user`, `type`, `token`) VALUES (%s, %s, %s)", $userId, $l['device'], $l['token']);
 }
 
 ?>

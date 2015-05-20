@@ -23,7 +23,7 @@ function load($userId) {
 }
 
 function delete($userId) {
-	$db_conn->query("DELETE `cloud` WHERE `user` = %s", $userId);
+	$db_conn->query("DELETE FROM `cloud` WHERE `user` = %s", $userId);
 }
 
 ?>
